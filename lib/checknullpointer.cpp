@@ -130,6 +130,20 @@ void CheckNullPointer::parseFunctionCall(const Token &tok, std::list<const Token
             }
         }
     }
+    else { // other parameter.
+        const Token* nextParam = secondParam->nextArgument();
+        int pos = 3;
+        while (nextParam) {
+            if ((value == 0 && Token::Match(nextParam, "0|NULL ,|)")) || (nextParam && nextParam->varId() > 0 && Token::Match(nextParam->next(), "[,)]"))) {
+                if (value == 0 && library != nullptr && library->isnullargbad(&tok, pos) && checkNullpointerFunctionCallPlausibility(tok.function(), pos))
+                    var.push_back(nextParam);
+                else if (value == 1 && library != nullptr && library->isuninitargbad(&tok, pos))
+                    var.push_back(nextParam);
+            }
+            nextParam = nextParam->nextArgument();
+            pos++;
+        }
+    }
 }
 
 

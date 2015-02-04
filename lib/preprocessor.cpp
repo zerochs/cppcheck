@@ -196,7 +196,64 @@ std::string Preprocessor::read(std::istream &istr, const std::string &filename)
     // on the next <newline>, extra newlines will be added
     std::ostringstream code;
     unsigned int newlines = 0;
+
+	//Delete the "typedef" part in the sourcecode. By zhu.dingliang
+	char typedefStr[8] = { "typedef" };
+	int typedefTag = 0;
+	bool typedefFlag = false;
+	int curlyNum = 0;
+	bool lineCommentFlag = false;
+	bool blockCommentFlag = false;
     for (unsigned char ch = readChar(istr,bom); istr.good(); ch = readChar(istr,bom)) {
+		if (lineCommentFlag) {
+			if (ch == '\n') {
+				lineCommentFlag = false;
+			}
+		}
+		else if (blockCommentFlag) {
+			if (ch == '*') {
+				unsigned char chNext = (unsigned char)istr.peek();
+				if (chNext == '/') {
+					blockCommentFlag = false;
+				}
+			}
+		}
+		else if (ch == '/'){
+			unsigned char chNext = (unsigned char)istr.peek();
+			if (chNext == '/') {
+				lineCommentFlag = true;
+			}
+			else if (chNext == '*') {
+				blockCommentFlag = true;
+			}
+		}
+
+		if (typedefFlag) {
+			if (lineCommentFlag || blockCommentFlag) true;
+			else if (ch == '{' || ch == '(') curlyNum++;
+			else if (curlyNum) {
+				if (ch == '}' || ch == ')') curlyNum--;
+			}
+			else if (ch == ';') typedefFlag = false;
+			if (ch == '\n') code << char(ch);
+			continue;
+		}
+		else if (ch == typedefStr[typedefTag] && lineCommentFlag == false && blockCommentFlag == false) {
+			typedefTag++;
+			if (typedefTag == 7) {
+				typedefFlag = true;
+				typedefTag = 0;
+			}
+			continue;
+		}
+		else if (typedefTag) {
+			for (int i = 0; i < typedefTag; i++)
+				code << char(typedefStr[i]);
+			typedefTag = 0;
+		}
+		//the "typdef" part end.
+
+
         // Replace assorted special chars with spaces..
         if (((ch & 0x80) == 0) && (ch != '\n') && (std::isspace(ch) || std::iscntrl(ch)))
             ch = ' ';
@@ -2085,6 +2142,9 @@ std::string Preprocessor::handleIncludes(const std::string &code, const std::str
 
         // has there been a true #if condition at the current indentmatch level?
         // then no more #elif or #else can be true before the #endif is seen.
+		if (indentmatch > 100){
+			return "";
+		}
         while (elseIsTrueStack.size() != indentmatch + 1) {
             if (elseIsTrueStack.size() < indentmatch + 1) {
                 elseIsTrueStack.push(true);
